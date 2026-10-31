@@ -2,11 +2,11 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-title Criador de Video Lofi
+title Criador de Video Lofi com Imagem
 color 0A
 
 echo =====================================
-echo       CRIADOR DE VIDEO LOFI
+echo    CRIADOR DE VIDEO LOFI - IMAGEM
 echo =====================================
 echo.
 
@@ -23,25 +23,30 @@ echo Criando seletor de arquivos...
 > "%PS1%" echo Add-Type -AssemblyName System.Windows.Forms
 >> "%PS1%" echo $ErrorActionPreference = 'Stop'
 >> "%PS1%" echo $v = New-Object System.Windows.Forms.OpenFileDialog
->> "%PS1%" echo $v.Title = 'Selecione o video'
->> "%PS1%" echo $v.Filter = 'Videos^|*.png;*.webm'
+>> "%PS1%" echo $v.Title = 'Selecione a imagem'
+>> "%PS1%" echo $v.Filter = 'Imagens^|*.png;*.jpg;*.jpeg;*.webp;*.bmp'
 >> "%PS1%" echo if ($v.ShowDialog() -ne 'OK') { exit 1 }
+
 >> "%PS1%" echo $a = New-Object System.Windows.Forms.OpenFileDialog
 >> "%PS1%" echo $a.Title = 'Selecione as musicas'
 >> "%PS1%" echo $a.Filter = 'Audios^|*.mp3;*.wav;*.m4a;*.flac;*.aac'
 >> "%PS1%" echo $a.Multiselect = $true
 >> "%PS1%" echo if ($a.ShowDialog() -ne 'OK') { exit 1 }
+
 >> "%PS1%" echo $s = New-Object System.Windows.Forms.SaveFileDialog
 >> "%PS1%" echo $s.Filter = 'MP4^|*.mp4'
 >> "%PS1%" echo $s.FileName = 'lofi_final.mp4'
 >> "%PS1%" echo if ($s.ShowDialog() -ne 'OK') { exit 1 }
+
 >> "%PS1%" echo $dir = Join-Path $env:TEMP ('lofi_' + [guid]::NewGuid())
 >> "%PS1%" echo New-Item -ItemType Directory -Path $dir ^| Out-Null
+
 >> "%PS1%" echo try {
 >> "%PS1%" echo $lista = Join-Path $dir 'lista.txt'
 >> "%PS1%" echo $final = Join-Path $dir 'audio.m4a'
 >> "%PS1%" echo $linhas = @()
 >> "%PS1%" echo $i = 0
+
 >> "%PS1%" echo foreach ($f in ($a.FileNames ^| Sort-Object)) {
 >> "%PS1%" echo $i++
 >> "%PS1%" echo Write-Host "Convertendo musica $i de $($a.FileNames.Count)"
@@ -50,13 +55,21 @@ echo Criando seletor de arquivos...
 >> "%PS1%" echo if ($LASTEXITCODE -ne 0) { throw 'Erro ao converter audio' }
 >> "%PS1%" echo $linhas += "file '$($out.Replace('\','/'))'"
 >> "%PS1%" echo }
+
 >> "%PS1%" echo [System.IO.File]::WriteAllLines($lista,$linhas)
+
 >> "%PS1%" echo Write-Host 'Juntando musicas...'
 >> "%PS1%" echo ^& ffmpeg -y -f concat -safe 0 -i $lista -c:a copy $final
 >> "%PS1%" echo if ($LASTEXITCODE -ne 0) { throw 'Erro ao juntar musicas' }
->> "%PS1%" echo Write-Host 'Criando video final...'
->> "%PS1%" echo ^& ffmpeg -y -stream_loop -1 -i $v.FileName -i $final -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -crf 23 -pix_fmt yuv420p -c:a copy -shortest -movflags +faststart $s.FileName
+
+>> "%PS1%" echo Write-Host 'Criando video com imagem fixa...'
+
+>> "%PS1%" echo $filtro = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p'
+
+>> "%PS1%" echo ^& ffmpeg -y -loop 1 -framerate 1 -i $v.FileName -i $final -map 0:v:0 -map 1:a:0 -vf $filtro -c:v libx264 -preset ultrafast -tune stillimage -crf 23 -r 1 -c:a copy -shortest -movflags +faststart $s.FileName
+
 >> "%PS1%" echo if ($LASTEXITCODE -ne 0) { throw 'Erro ao criar video' }
+
 >> "%PS1%" echo Write-Host 'VIDEO CRIADO COM SUCESSO!'
 >> "%PS1%" echo Write-Host $s.FileName
 >> "%PS1%" echo } finally {
